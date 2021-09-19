@@ -1,36 +1,24 @@
-// Create the state that will contain the whole game
 var mainState = {
     preload: function () {
-        // Here we preload the assets
         game.load.image("player", "assets/player.png");
         game.load.image("wall", "assets/wall.png");
         game.load.image("coin", "assets/coin.png");
         game.load.image("enemy", "assets/enemy.png");
+        game.load.audio("coin", ["assets/coin.mp3", "assets/coin.ogg"]);
+        game.load.audio("jump", ["assets/jump.mp3", "assets/jump.ogg"]);
+        game.load.audio("lost", ["assets/lost.mp3", "assets/lost.ogg"]);
     },
 
     create: function () {
-        // Here we create the game
-        // Set the background color to blue
         game.stage.backgroundColor = "#3598db";
-
-        // Start the Arcade physics system (for movements and collisions)
-        game.physics.startSystem(Phaser.Physics.ARCADE);
-
-        // Add the physics engine to all game objects
         game.world.enableBody = true;
-        // Variable to store the arrow key pressed
         this.cursor = game.input.keyboard.createCursorKeys();
-
-        // Create the player in the middle of the game
         this.player = game.add.sprite(60, 100, "player");
-
-        // Add gravity to make it fall
         this.player.body.gravity.y = 400;
         this.walls = game.add.group();
         this.coins = game.add.group();
         this.enemies = game.add.group();
 
-        // Design the level. x = wall, o = coin, ! = lava.
         var level = [
             "xxxxxxxxxxxxxxxxxxxxxx",
             "!         !          x",
@@ -40,23 +28,19 @@ var mainState = {
             "!     o   !    x     x",
             "xxxxxxxxxxxxxxxx!!!!!x",
         ];
-        // Create the level by going through the array
         for (var i = 0; i < level.length; i++) {
             for (var j = 0; j < level[i].length; j++) {
-                // Create a wall and add it to the 'walls' group
                 if (level[i][j] == "x") {
                     var wall = game.add.sprite(30 + 20 * j, 30 + 20 * i, "wall");
                     this.walls.add(wall);
                     wall.body.immovable = true;
                 }
 
-                // Create a coin and add it to the 'coins' group
                 else if (level[i][j] == "o") {
                     var coin = game.add.sprite(30 + 20 * j, 30 + 20 * i, "coin");
                     this.coins.add(coin);
                 }
 
-                // Create a enemy and add it to the 'enemies' group
                 else if (level[i][j] == "!") {
                     var enemy = game.add.sprite(30 + 20 * j, 30 + 20 * i, "enemy");
                     this.enemies.add(enemy);
@@ -66,37 +50,99 @@ var mainState = {
     },
 
     update: function () {
-        // Here we update the game 60 times per second
         if (this.cursor.left.isDown) this.player.body.velocity.x = -200;
         else if (this.cursor.right.isDown) this.player.body.velocity.x = 200;
         else this.player.body.velocity.x = 0;
 
-        /// Make the player jump if he is touching the ground
         if (this.cursor.up.isDown && this.player.body.y >= 130) {
+            music = game.add.audio("jump");
+            music.play();
             this.player.body.velocity.y = -200;
             this.player.body.y -= 1;
         }
-        // Make the player and the walls collide
         game.physics.arcade.collide(this.player, this.walls);
 
-        // Call the 'takeCoin' function when the player takes a coin
         game.physics.arcade.overlap(this.player, this.coins, this.takeCoin, null, this);
 
-        // Call the 'restart' function when the player touches the enemy
         game.physics.arcade.overlap(this.player, this.enemies, this.restart, null, this);
     },
-    // Function to kill a coin
     takeCoin: function (player, coin) {
+        music = game.add.audio("coin");
+        music.play();
         coin.kill();
     },
 
-    // Function to restart the game
     restart: function () {
-        game.state.start("main");
+        music = music = game.add.audio("lost");
+        music.play();
+        game.state.start("gameOver");
     },
 };
 
-// Initialize the game and start our state
-var game = new Phaser.Game(500, 200);
-game.state.add("main", mainState);
-game.state.start("main");
+var menuState = {
+    preload: function () {
+        game.load.image("button", "assets/button_play-game.png");
+        game.load.image("back", "assets/back_1.jpg");
+    },
+    create: function () {
+        game.stage.backgroundColor = "#182d3b";
+
+        back = game.add.tileSprite(0, 0, 800, 600, "back");
+
+        button = game.add.button(game.world.centerX - 95, 400, "button", this.actionOnClick, this);
+    },
+
+    actionOnClick: function () {
+        game.state.start("game");
+    },
+};
+
+
+var gameOverState = {
+    timer: 0,
+    preload: function () {
+        game.load.image("button", "assets/button_play-again.png");
+        game.load.image("back", "assets/game_over.jpg");
+    },
+    create: function () {
+        this.add.text(0, 0, "Hello World", { fontFamily: 'Georgia, "Goudy Bookletter 1911", Times, serif' });
+        back = game.add.tileSprite(0, 0, 800, 600, "back");
+
+        button = game.add.button(game.world.centerX - 95, 400, "button", this.actionOnClick, this);
+    },
+
+    actionOnClick: function () {
+        game.state.start("game");
+    },
+    update: function () {
+        this.timer += 1;
+        if (this.timer >= 3 * 60) {
+            game.state.start("menu");
+            this.timer = 0;
+        }
+        
+    },
+};
+
+var config = {
+    type: Phaser.AUTO,
+    scale: {
+        width: 500,
+        height: 200,
+    },
+    physics: {
+        default: "arcade",
+        arcade: {
+            gravity: { y: 300 },
+        },
+    },
+};
+
+var game = new Phaser.Game(config);
+game.state.add("menu", menuState);
+game.state.add("game", mainState);
+game.state.add("gameOver", gameOverState);
+game.state.start("menu");
+
+// game.state.add("main", mainState);
+// game.state.start("main");
